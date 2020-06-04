@@ -2,9 +2,10 @@
   "name": "smoke-test",
   "version": "0.0.0",
   "description": "Test your package as it would be installed by a consumer",
-  "main": "src/index.js",
+  "main": "src/smoke-test.js",
   "scripts": {
     "posttest": "markdownlint \"*.md\" && eslint .",
+    "pretest": "node src/cli.js",
     "test": "nyc mocha \"test/**/*.spec.js\"",
     "release": "standard-version -a"
   },
@@ -20,7 +21,10 @@
     "pack",
     "publish",
     "release",
-    "prerelease"
+    "prerelease",
+    "npm",
+    "package",
+    "is-promise"
   ],
   "author": "Christopher Hiller <boneskull@boneskull.com> (https://boneskull.com/)",
   "license": "Apache-2.0",
@@ -28,19 +32,23 @@
     "node": ">=10"
   },
   "bin": {
-    "smoke": "src/cli.js"
+    "smoke-test": "src/cli.js"
   },
   "files": [
     "src"
   ],
   "dependencies": {
+    "cpy": "^8.1.0",
     "debug": "^4.1.1",
     "execa": "^4.0.1",
+    "globby": "^11.0.1",
     "read-pkg-up": "^7.0.1",
     "tmp-promise": "^3.0.2",
-    "which": "^2.0.2"
+    "which": "^2.0.2",
+    "yargs": "^15.3.1"
   },
   "devDependencies": {
+    "@types/node": "^14.0.11",
     "babel-eslint": "^10.1.0",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.11.0",
@@ -59,6 +67,7 @@
     "prettier": "^1.19.1",
     "sinon": "^7.5.0",
     "standard-version": "^7.1.0",
+    "type-fest": "^0.15.0",
     "unexpected": "^11.14.0",
     "unexpected-sinon": "^10.11.2"
   },

@@ -2,7 +2,7 @@
 
 > Test your package as it would be installed by a consumer
 
-## Why?
+## Motivation
 
 Running your regular test suite (e.g., `npm test`) in CI _will_ miss packaging-related issues, such as missing files and package exports.
 
@@ -16,78 +16,88 @@ This is kind of a pain to do manually, so automating it might be nice, right?
 $ npm install smoke-test --save-dev
 ```
 
-You'll then want to add a `pretest` script to your `scripts` field in `package.json`:
+### Setup (Automatic)
+
+> TODO: via `init` command
+
+### Setup (Manual)
+
+Add a `pretest` script to your `scripts` field in `package.json`:
 
 ```json
 {
   "scripts": {
-    "pretest": "smoke",
+    "pretest": "smoke-test",
     "test": "my-regular-test-script"
   }
 }
 ```
 
-It's recommended to _also_ run `smoke` during `prepublishOnly`, so it will check at the last minute before you publish.
+> It's recommended to _also_ run `smoke-test` during `prepublishOnly`, so it will check at the last minute before you publish.
 
-## Usage
+Create a `__smoke_test__` directory; all files in this directory will be run as smoke tests. Read about [creating smoke tests](#creating-smoke-tests).
 
-### Default Behavior
+**You do not need to add test files for `smoke-test` to your package**; in other words, they don't need to be in the `files` prop of `package.json`, and they can be safely ignored via `.npmignore`, if desired.
 
-By default, `smoke-test` will:
+## Configuration (Optional)
 
-1. Create a tarball
-1. Un-tar the tarball into a temp directory
-1. Attempt to `require()` or `import()` your package from the tarball (and/or all of its subpath exports)
-1. If this fails, then returns with a nonzero exit code
+> TODO: implement this
 
-The third step is configurable.
+If you want to provide a location other than `__smoke_test__`, supply files, globs, or dirs ("targets") as arguments to the `smoke-test` executable:
 
-### Configuration
+```bash
+smoke-test "test/**/*.smoke.js" something-else.smoke.js
+```
 
-Add a `smoke-test` property to `package.json`. These are the defaults:
+You can also configure `smoke-test` via `package.json`, by adding a `smoke-test` prop with a `targets` prop:
 
 ```json
 {
   "smoke-test": {
-    "cjs": true,
-    "esm": true
+    "targets": ["file.js", "dir/", "globs/**/*.js"]
   }
 }
 ```
 
-- `cjs`: Ensure a consumer can `require()` your package.
-- `esm`: Ensure a consumer can `import()` or `import` your package.
-- `script`: A path to a custom test script.
+Targets supplied as command-line arguments will be merged with any files in the above configuration.
 
-#### Custom Test Script
+## Creating Smoke Test Files
 
-If you want to get fancy, add a custom test script. You might want to test some basic functionality, or check for the existence of specific files. Example:
+A _smoke test file_ is just a plain Node.js module, which has a default export of a function. This function will be called with a single parameter: the contents of your `package.json`.
+
+The purpose of this test file is to make assertions about the state of your package's public API. The question you're trying to answer is this: _is my package usable when installed via a package manager?_
+
+Remember: you won't have your `devDependencies` installed; this means no test frameworks, assertion libraries, etc. The built-in [assert](https://nodejs.org/api/assert.html) module works well for this use case.
+
+### CJS Example
+
+This example is a smoke test file used by `smoke-test` itself.
 
 ```js
-// CJS style
-module.exports = async function test({cjs, esm, pkg}) {
-  // do your test here; reject if failure
+const assert = require('assert');
+
+module.exports = async pkg => {
+  let smokeTest;
+  assert.doesNotThrow(() => {
+    smokeTest = require(pkg.name);
+  }, `could not require('${pkg.name}')`);
+
+  assert.ok(
+    typeof smokeTest.smoke === 'function',
+    'did not export "smoke" function'
+  );
+
+  assert.doesNotReject(import(pkg.name), `could not import('${pkg.name}')`);
+
+  assert.doesNotThrow(() => {
+    require(`${pkg.name}/${pkg.main}`);
+  }, `could not require('${pkg.name}/${pkg.main}') directly`);
 };
 ```
 
-or:
+### ESM Example
 
-```js
-// ESM style
-export default function({cjs, esm, pkg}) {
-  // do your test here; reject if failure
-}
-```
-
-`pkg` will be the parsed `package.json` of your project, which you can inspect for whatever reason.
-
-## TODO (help wanted!)
-
-- Needs to check subpath exports
-- Support for Yarn/pnpm/etc.
-- Example for use w/ GitHub Actions (or just a publish a standalone GitHub action)
-- Examples for use with Travis-CI, Circle CI, other popular CI services
-- CLI options? More/better CLI output?
+> TODO
 
 ## License
 
