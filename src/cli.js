@@ -4,7 +4,7 @@
 
 const pkg = require('../package.json');
 const path = require('path');
-const {smoke} = require('./smoke-test');
+const {packTest} = require('./packtester');
 const yargs = require('yargs');
 const {LogLevel} = require('consola');
 
@@ -21,8 +21,8 @@ yargs
       yargs
         .strict()
         .positional('target', {
-          describe: 'Location of smoke test target(s); files, dirs or globs',
-          defaultDescription: '__smoke_test__'
+          describe: 'Location of pack test target(s); files, dirs or globs',
+          defaultDescription: '__pack_tests__'
         })
         .options({
           package: {
@@ -38,13 +38,17 @@ yargs
           }
         })
         .epilogue(
-          `GitHub: https://github.com/boneskull/smoke-test
-   npm: https://npm.im/smoke-test
+          `GitHub: ${pkg.repository.url}
+   npm: https://npm.im/${pkg.name}
 `
         );
     },
     async argv =>
-      smoke({cwd: argv.package, logLevel: argv.logLevel, target: argv.target})
+      packTest({
+        cwd: argv.package,
+        logLevel: argv.logLevel,
+        target: argv.target
+      })
   )
   .options({
     verbose: {
@@ -78,5 +82,4 @@ yargs
   // )
   .alias('h', 'help')
   .version()
-
   .parse();

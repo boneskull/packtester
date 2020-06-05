@@ -10,14 +10,17 @@ const ok = assert.ok;
  */
 module.exports = async pkg => {
   /**
-   * @type {typeof import('../src/smoke-test')}
+   * @type {typeof import('../src/packtester')}
    */
-  let smokeTest;
+  let packtester;
   assert.doesNotThrow(() => {
-    smokeTest = require(pkg.name);
+    packtester = require(pkg.name);
   }, `could not require('${pkg.name}')`);
 
-  ok(typeof smokeTest.smoke === 'function', 'did not export "smoke" function');
+  ok(
+    typeof packtester.packTest === 'function',
+    'did not export "packTest" function'
+  );
 
   assert.doesNotReject(import(pkg.name), `could not import('${pkg.name}')`);
 

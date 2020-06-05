@@ -9,7 +9,7 @@ const tmp = require('tmp-promise');
 const readPkgUp = require('read-pkg-up');
 const consola = require('consola');
 
-const DEFAULT_SMOKE_TEST_DIR = '__smoke_tests__';
+const DEFAULT_TEST_DIR = '__pack_tests__';
 
 async function pack({npmPath, cwd, tmpDirPath}) {
   let tarballPath;
@@ -100,11 +100,11 @@ function createTargetRunner(pkg) {
 }
 
 /**
- * Runs a smoke test to ensure that your package, as packed, will be consumable.
- * @param {Partial<SmokeTestConfig>} opts - Configuration
+ * Runs a pack test to ensure that your package, as packed, will be consumable.
+ * @param {Partial<PackTestConfig>} opts - Configuration
  * @returns {Promise<void>}
  */
-exports.smoke = async (opts = {}) => {
+exports.packTest = async (opts = {}) => {
   let {
     cwd = process.cwd(),
     pkg = null,
@@ -128,7 +128,7 @@ exports.smoke = async (opts = {}) => {
   }
 
   if (!target) {
-    target = path.relative(cwd, DEFAULT_SMOKE_TEST_DIR);
+    target = path.relative(cwd, DEFAULT_TEST_DIR);
   }
 
   try {
@@ -166,9 +166,9 @@ exports.smoke = async (opts = {}) => {
 };
 
 /**
- * Main config object for `smoke-test`.
- * @typedef {Object} SmokeTestConfig
- * @property {string|string[]} target - Smoke test target(s)
+ * Main config object for `packtester`.
+ * @typedef {Object} PackTestConfig
+ * @property {string|string[]} target - Pack test target(s)
  * @property {string} [cwd] - Current working directory
  * @property {import('type-fest').PackageJson} [pkg] - Parsed `package.json`
  * @property {string} [npmPath] - Path to `npm` executable
@@ -178,8 +178,8 @@ exports.smoke = async (opts = {}) => {
 /**
  * A (optionally user-defined) function, given some configuration, attempts to
  * test a package which was installed as a user would.
- * @callback SmokeTestFunction
- * @param {Partial<SmokeTestConfig>} config - Configuration for the test
+ * @callback PackTestFunction
+ * @param {Partial<PackTestConfig>} config - Configuration for the test
  * function
  * @returns {Promise<void>|void}
  */
