@@ -6,8 +6,8 @@ const globby = require('globby');
 const execa = require('execa');
 const which = require('which');
 const tmp = require('tmp-promise');
-const debug = require('debug')('smoke-test');
 const readPkgUp = require('read-pkg-up');
+const consola = require('consola');
 
 const DEFAULT_SMOKE_TEST_DIR = '__smoke_tests__';
 
@@ -19,7 +19,7 @@ async function pack({npmPath, cwd, tmpDirPath}) {
         cwd: tmpDirPath
       })
     ).stdout;
-    debug('successfully packed into tarball %s', tarballPath);
+    consola.success('packed tarball %s', tarballPath);
   } catch (err) {
     throw new Error(`could not pack project at ${cwd}: ${err}`);
   }
@@ -31,7 +31,7 @@ async function installFromTarball({npmPath, tarballPath, tmpDirPath}) {
     await execa(npmPath, ['install', tarballPath], {
       cwd: tmpDirPath
     });
-    debug('successfully installed via tarball %s', tarballPath);
+    consola.success('successfully installed via tarball %s', tarballPath);
   } catch (err) {
     throw new Error(
       `could not "npm install" from tarball ${tarballPath}: ${err.message}`
@@ -43,7 +43,7 @@ async function whichNpm() {
   let npmPath;
   try {
     npmPath = await which('npm');
-    debug('found npm at %s', npmPath);
+    consola.info('found npm at %s', npmPath);
   } catch (err) {
     throw new Error(`could not find npm executable: ${err.message}`);
   }
@@ -54,18 +54,21 @@ async function readPackage(cwd) {
   const pkgResult = await readPkgUp({normalize: false, cwd});
   const pkg = pkgResult.packageJson;
   cwd = path.dirname(pkgResult.path);
+  consola.info('found package.json at %s', pkgResult.path);
   return {pkg, cwd};
 }
 
 async function findTargets({cwd, target, tmpDirPath}) {
-  const targets = (await globby(target)).map(testFile => [
-    path.resolve(cwd, testFile),
-    path.resolve(tmpDirPath, testFile)
-  ]);
-  if (!targets.length) {
+  const targets = new Map(
+    (await globby(target)).map(testFile => [
+      path.resolve(cwd, testFile),
+      path.resolve(tmpDirPath, testFile)
+    ])
+  );
+  if (!targets.size) {
     throw new Error(`could not find any test files in ${target}`);
   }
-  debug('computed targets %O', targets);
+  consola.debug('computed targets %O', targets);
   return targets;
 }
 
@@ -74,12 +77,12 @@ function createTargetRunner(pkg) {
     let testFunc;
     try {
       testFunc = require(target);
-      debug('loaded %s via require()', target);
+      consola.debug('loaded %s via require()', target);
     } catch (err) {
-      debug('could not require() %s:', target, err);
+      consola.debug('could not require() %s:', target, err);
       try {
         testFunc = await import(target);
-        debug('loaded %s via import()', target);
+        consola.debug('loaded %s via import()', target);
       } catch (err) {
         throw new Error(
           `could neither require() nor import() ${target}: ${err}`
@@ -88,7 +91,6 @@ function createTargetRunner(pkg) {
     }
     if (typeof testFunc === 'function') {
       await testFunc(pkg);
-      debug('executed test script at %s successfully', target);
     } else {
       throw new Error(
         `test script must have a test function as its default export; found ${typeof testFunc}`
@@ -103,7 +105,15 @@ function createTargetRunner(pkg) {
  * @returns {Promise<void>}
  */
 exports.smoke = async (opts = {}) => {
-  let {cwd = process.cwd(), pkg = null, target = null, npmPath = ''} = opts;
+  let {
+    cwd = process.cwd(),
+    pkg = null,
+    target = null,
+    npmPath = '',
+    logLevel = consola.LogLevel.Silent
+  } = opts;
+
+  consola.level = logLevel;
 
   if (!pkg) {
     const pkgResult = await readPackage(cwd);
@@ -124,24 +134,26 @@ exports.smoke = async (opts = {}) => {
   try {
     await tmp.withDir(
       async ({path: tmpDirPath}) => {
-        debug(
+        consola.debug(
           'created tmp dir at %s; looking for targets in %s',
           tmpDirPath,
           target
         );
         const targets = await findTargets({cwd, tmpDirPath, target});
         const tarballPath = await pack({npmPath, cwd, tmpDirPath});
-        debug('installing from tarball...');
+        consola.debug('installing from tarball...');
         await installFromTarball({
           tarballPath,
           npmPath,
           tmpDirPath
         });
+        consola.success('installed %s from tarball', pkg.name);
 
         for await (const [src, dest] of targets) {
           await cpy(src, path.dirname(dest));
-          debug('copied %s to %s; running', src, dest);
+          consola.debug('copied %s to %s; running', src, dest);
           await runTarget(dest);
+          consola.success('test %s ok', dest);
         }
       },
       {unsafeCleanup: true}
@@ -150,7 +162,7 @@ exports.smoke = async (opts = {}) => {
     process.exitCode = 1;
     throw err;
   }
-  console.error('ok');
+  consola.success('all tests passed');
 };
 
 /**
@@ -160,6 +172,7 @@ exports.smoke = async (opts = {}) => {
  * @property {string} [cwd] - Current working directory
  * @property {import('type-fest').PackageJson} [pkg] - Parsed `package.json`
  * @property {string} [npmPath] - Path to `npm` executable
+ * @property {number} [logLevel] - Log level (per `consola`)
  */
 
 /**

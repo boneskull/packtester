@@ -1,7 +1,7 @@
 {
   "name": "smoke-test",
-  "version": "0.0.0",
-  "description": "Test your package as it would be installed by a consumer",
+  "version": "0.1.0",
+  "description": "Test the output of your npm-published package",
   "main": "src/smoke-test.js",
   "scripts": {
     "posttest": "markdownlint \"*.md\" && eslint .",
@@ -24,7 +24,11 @@
     "prerelease",
     "npm",
     "package",
-    "is-promise"
+    "is-promise",
+    "prepublish",
+    "prepublishOnly",
+    "production",
+    "test"
   ],
   "author": "Christopher Hiller <boneskull@boneskull.com> (https://boneskull.com/)",
   "license": "Apache-2.0",
@@ -38,8 +42,8 @@
     "src"
   ],
   "dependencies": {
+    "consola": "^2.12.2",
     "cpy": "^8.1.0",
-    "debug": "^4.1.1",
     "execa": "^4.0.1",
     "globby": "^11.0.1",
     "read-pkg-up": "^7.0.1",
