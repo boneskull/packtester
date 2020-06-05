@@ -1,6 +1,6 @@
 # smoke-test
 
-> Test your package as it would be installed by a consumer
+> Test the output of your npm-published package
 
 ## Motivation
 
