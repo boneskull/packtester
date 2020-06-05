@@ -5,7 +5,7 @@
   "main": "src/smoke-test.js",
   "scripts": {
     "posttest": "markdownlint \"*.md\" && eslint .",
-    "pretest": "node src/cli.js",
+    "pretest": "node --experimental-modules --no-warnings src/cli.js",
     "test": "nyc mocha \"test/**/*.spec.js\"",
     "release": "standard-version -a"
   },

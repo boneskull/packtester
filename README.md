@@ -99,6 +99,18 @@ module.exports = async pkg => {
 
 > TODO
 
+## How It Works
+
+`smoke-test`:
+
+1. Runs `npm pack` on your project to generate a tarball in a temporary directory
+1. Runs `npm install` against the tarball in the temp dir
+1. Copies the target tests into temp dir
+1. Runs the target tests, exiting with non-zero code if they fail
+1. Removes the temp dir
+
+By installing from a tarball created from `npm pack`, we simulate what would happen if you installed your project via a package manager, e.g., `npm install my-package`.
+
 ## License
 
 Copyright © 2020 Christopher Hiller. Licensed Apache-2.0
