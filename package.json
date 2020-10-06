@@ -1,6 +1,6 @@
 {
   "name": "packtester",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Test the output of your npm-published package",
   "main": "src/packtester.js",
   "scripts": {
