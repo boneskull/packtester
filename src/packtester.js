@@ -8,6 +8,7 @@ const which = require('which');
 const tmp = require('tmp-promise');
 const readPkgUp = require('read-pkg-up');
 const consola = require('consola');
+const StackUtils = require('stack-utils');
 
 const DEFAULT_TEST_DIR = '__pack_tests__';
 
@@ -19,6 +20,7 @@ async function pack({npmPath, cwd, tmpDirPath}) {
         cwd: tmpDirPath
       })
     ).stdout;
+    // @ts-ignore
     consola.success('packed tarball %s', tarballPath);
   } catch (err) {
     throw new Error(`could not pack project at ${cwd}: ${err}`);
@@ -31,6 +33,7 @@ async function installFromTarball({npmPath, tarballPath, tmpDirPath}) {
     await execa(npmPath, ['install', tarballPath], {
       cwd: tmpDirPath
     });
+    // @ts-ignore
     consola.success('successfully installed via tarball %s', tarballPath);
   } catch (err) {
     throw new Error(
@@ -43,6 +46,7 @@ async function whichNpm() {
   let npmPath;
   try {
     npmPath = await which('npm');
+    // @ts-ignore
     consola.info('found npm at %s', npmPath);
   } catch (err) {
     throw new Error(`could not find npm executable: ${err.message}`);
@@ -54,6 +58,7 @@ async function readPackage(cwd) {
   const pkgResult = await readPkgUp({normalize: false, cwd});
   const pkg = pkgResult.packageJson;
   cwd = path.dirname(pkgResult.path);
+  // @ts-ignore
   consola.info('found package.json at %s', pkgResult.path);
   return {pkg, cwd};
 }
@@ -68,35 +73,18 @@ async function findTargets({cwd, target, tmpDirPath}) {
   if (!targets.size) {
     throw new Error(`could not find any test files in ${target}`);
   }
+  // @ts-ignore
   consola.debug('computed targets %O', targets);
   return targets;
 }
 
-function createTargetRunner(pkg) {
-  return async function(target) {
-    let testFunc;
-    try {
-      testFunc = require(target);
-      consola.debug('loaded %s via require()', target);
-    } catch (err) {
-      consola.debug('could not require() %s:', target, err);
-      try {
-        testFunc = await import(target);
-        consola.debug('loaded %s via import()', target);
-      } catch (err) {
-        throw new Error(
-          `could neither require() nor import() ${target}: ${err}`
-        );
-      }
-    }
-    if (typeof testFunc === 'function') {
-      await testFunc(pkg);
-    } else {
-      throw new Error(
-        `test script must have a test function as its default export; found ${typeof testFunc}`
-      );
-    }
-  };
+/**
+ * Runs a test as a script current `node`
+ * @param {string} target - File to run
+ * @param {import('execa').NodeOptions} opts - Options for `execa`
+ */
+async function runTarget(target, opts = {}) {
+  return execa.node(target, opts);
 }
 
 /**
@@ -113,15 +101,17 @@ exports.packTest = async (opts = {}) => {
     logLevel = consola.LogLevel.Silent
   } = opts;
 
+  // @ts-ignore
   consola.level = logLevel;
+
+  // @ts-ignore
+  consola.info('packtester starting - https://npm.im/packtester');
 
   if (!pkg) {
     const pkgResult = await readPackage(cwd);
     cwd = pkgResult.cwd;
     pkg = pkgResult.pkg;
   }
-
-  const runTarget = createTargetRunner(pkg);
 
   if (!npmPath) {
     npmPath = await whichNpm();
@@ -130,39 +120,63 @@ exports.packTest = async (opts = {}) => {
   if (!target) {
     target = path.relative(cwd, DEFAULT_TEST_DIR);
   }
-
   try {
     await tmp.withDir(
       async ({path: tmpDirPath}) => {
-        consola.debug(
-          'created tmp dir at %s; looking for targets in %s',
-          tmpDirPath,
-          target
-        );
+        // @ts-ignore
+        consola.success('created temp dir %s', tmpDirPath);
+        // @ts-ignore
+        consola.debug('looking for targets in %s', target);
         const targets = await findTargets({cwd, tmpDirPath, target});
         const tarballPath = await pack({npmPath, cwd, tmpDirPath});
+        // @ts-ignore
         consola.debug('installing from tarball...');
         await installFromTarball({
           tarballPath,
           npmPath,
           tmpDirPath
         });
+        // @ts-ignore
         consola.success('installed %s from tarball', pkg.name);
 
-        for await (const [src, dest] of targets) {
-          await cpy(src, path.dirname(dest));
-          consola.debug('copied %s to %s; running', src, dest);
-          await runTarget(dest);
-          consola.success('test %s ok', dest);
-        }
+        await Promise.all(
+          Array.from(targets).map(async ([src, dest]) => {
+            await cpy(src, path.dirname(dest));
+            // @ts-ignore
+            consola.debug('copied %s to %s; running', src, dest);
+            try {
+              await runTarget(dest);
+            } catch (err) {
+              // err.packtesterTarget = path.relative(cwd, src);
+              // @ts-ignore
+              consola.debug(err);
+              throw err;
+            }
+            // @ts-ignore
+            consola.success('test %s ok', src);
+          })
+        );
+        // @ts-ignore
+        consola.success('all tests passed');
       },
-      {unsafeCleanup: true}
+      {unsafeCleanup: true, prefix: 'packtester'}
     );
   } catch (err) {
+    const stack = new StackUtils({
+      cwd: process.cwd(),
+      internals: StackUtils.nodeInternals(),
+      ignoredPackages: ['packtester', 'execa']
+    });
+    const cleanStack = stack.clean(err.stack);
+
     process.exitCode = 1;
-    throw err;
+    if (err.packtesterTarget) {
+      // @ts-ignore
+      consola.error('test %s failed!\n\n%s', err.packtesterTarget, cleanStack);
+    } else {
+      throw err;
+    }
   }
-  consola.success('all tests passed');
 };
 
 /**

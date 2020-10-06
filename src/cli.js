@@ -72,6 +72,7 @@ yargs
       argv.logLevel = LogLevel.Info;
     }
   })
+  .showHelpOnFail(false)
   // .command(
   //   'init',
   //   'Initialize a project with smoke-test defaults',

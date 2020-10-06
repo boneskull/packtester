@@ -18,7 +18,7 @@ $ npm install packtester --save-dev
 
 ### Setup (Automatic)
 
-> TODO: via `init` command
+> TODO: via `init` command; needs implementation
 
 ### Setup (Manual)
 
@@ -35,66 +35,89 @@ Add a `pretest` script to your `scripts` field in `package.json`:
 
 > It's recommended to _also_ run `packtester` during `prepublishOnly`, so it will check at the last minute before you publish.
 
-Create a `__pack_tests__` directory; all files in this directory will be run as "pack" tests. Read about [creating pack tests](#creating-pack-tests).
+Create a `__pack_tests__` directory. All files (with `.js`, `.cjs`, and `.mjs` extensions, by default) in this directory will be run with _your module_ installed as a dependency. Here's an example file:
 
-**You do not need to add test files for `packtester` to your package**; in other words, they don't need to be in the `files` prop of `package.json`, and they can be safely ignored via `.npmignore`, if desired.
+```js
+// packtester.packtest.js
 
-<!--
-## Configuration (Optional)
+const assert = require('assert');
+// remember, use your package like a consumer would
+const pkg = require('packtester/package.json'); // yeah yeah I know
 
-> TODO: implement this
+let packtester;
+assert.doesNotThrow(() => {
+  packtester = require(pkg.name);
+}, `could not require('${pkg.name}')`);
 
-If you want to provide a location other than `__pack_tests__`, supply files, globs, or dirs ("targets") as arguments to the `packtester` executable:
+// packtester exports a function, `packTest`
+assert.ok(
+  typeof packtester.packTest === 'function',
+  'did not export "packTest" function'
+);
 
-```bash
-packtester "test/**/*.js" something-else.packtest.js
+// ESM!
+assert.doesNotReject(import(pkg.name), `could not import('${pkg.name}')`);
+
+assert.doesNotThrow(() => {
+  require(`${pkg.name}/${pkg.main}`);
+}, `could not require('${pkg.name}/${pkg.main}') directly`);
 ```
 
-You can also configure `packtester` via `package.json`, by adding a `packtester` prop with a `targets` prop:
+**You do not need to add test files for `packtester` to your published package** (unless you want to); in other words, they don't need to be in the `files` prop of `package.json`, and they can be safely ignored via `.npmignore`, if desired.
+
+## Options
+
+### Custom Targets
+
+By supplying positional arguments to `packtester`, you can point it at any directory, file, or glob. Example:
 
 ```json
 {
-  "packtester": {
-    "targets": ["file.js", "dir/", "globs/**/*.js"]
+  "scripts": {
+    "pretest": "packtester \"my-smoke-tests/**/*.js\"",
+    "test": "my-regular-test-script"
   }
 }
 ```
 
-Targets supplied as command-line arguments will be merged with any files in the above configuration. -->
+### Custom `package.json`
 
-## Creating Pack Tests
+`packtester` needs the `package.json` of your package to run. Use the `--package <package.json>` command-line option to use a specific `package.json` file. This may be useful in a monorepo or workspace. Example:
 
-A _pack test_ is just a plain Node.js module, which has a default export of a function. This function will be called with a single parameter: the contents of your `package.json`.
+```json
+{
+  "scripts": {
+    "pretest": "packtester --package=./packages/subpackage/package.json",
+    "test": "my-regular-test-script"
+  }
+}
+```
 
-The purpose of this test file is to make assertions about the state of your package's public API. The question you're trying to answer is this: _is my package usable when installed via a package manager?_
+### More Help
+
+Run `npx packtester --help` to see more usage options.
+
+## API
+
+`packtester` exports a single property, `packTest`, which is an `async` function.
+
+### `packtester.packTest([opts]): Promise<void>`
+
+Does everything the `packtester` CLI does.
+
+`opts` is an options object and supports properties (all optional):
+
+- `{string|string[]}` `target` - One or more target files, dirs, globs. Defaults to `__pack_tests__`
+- `{string}` `cwd` - Current working directory
+- `{PackageJson}` `pkg` - A parsed `package.json`
+- `{string}` `npmPath` - Path to `npm` executable
+- `{number}` `logLevel` - Log level, 0-5, with 0 being "error" and 5 being "trace"
+
+## About Tests
+
+The purpose of these tests is to make assertions about the state of your package's public API. The question you're trying to answer is this: _is my package usable when installed via a package manager?_
 
 Remember: you won't have your `devDependencies` installed; this means no test frameworks, assertion libraries, etc. The built-in [assert](https://nodejs.org/api/assert.html) module works well for this use case.
-
-### CJS Example
-
-This example is a pack test file used by `packtester` itself.
-
-```js
-const assert = require('assert');
-
-module.exports = async pkg => {
-  let packtester;
-  assert.doesNotThrow(() => {
-    packtester = require(pkg.name);
-  }, `could not require('${pkg.name}')`);
-
-  assert.ok(
-    typeof packtester.packTest === 'function',
-    'did not export "packTest" function'
-  );
-
-  assert.doesNotReject(import(pkg.name), `could not import('${pkg.name}')`);
-
-  assert.doesNotThrow(() => {
-    require(`${pkg.name}/${pkg.main}`);
-  }, `could not require('${pkg.name}/${pkg.main}') directly`);
-};
-```
 
 ### ESM Example
 
