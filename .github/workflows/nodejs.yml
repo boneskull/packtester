@@ -1,22 +1,24 @@
-name: Node CI
-
-on: [push, pull_request]
-
+name: Node.js CI
+'on':
+  - push
+  - pull_request
 jobs:
   build:
-    name: Test on node ${{ matrix.node_version }} and ${{ matrix.os }}
+    name: 'Test [Node.js v${{ matrix.node_version }} / ${{ matrix.os }}]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node_version: [10, 12, 14]
-        os: [ubuntu-latest]
+        node_version:
+          - 10
+          - 12
+          - 14
+        os:
+          - ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: Use Node.js ${{ matrix.node_version }}
-        uses: actions/setup-node@v1
+      - uses: actions/setup-node@v1
         with:
-          version: ${{ matrix.node_version }}
-      - name: npm install
-        uses: bahmutov/npm-install@v1
+          version: '${{ matrix.node_version }}'
+      - uses: bahmutov/npm-install@v1
       - name: test
         run: npm test
