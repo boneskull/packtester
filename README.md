@@ -1,14 +1,14 @@
 # packtester
 
-> Test the output of your npm-published package
+> Assert your published package actually works
 
 ## Motivation
 
 Running your regular test suite (e.g., `npm test`) in CI _will_ miss packaging-related issues, such as missing files and package exports.
 
-There's no staging registry you can test with, so when something's published, it's published. If there's a problem with it, you have to issue a patch and publish again. We can't avoid the problem entirely, but `packtester` gets closer.
+There's no staging registry you can test with, so when something's published, it's published. If there's a problem with it, you have to issue a patch and publish again. We can't avoid the problem entirely, but `packtester` gets us closer.
 
-This is kind of a pain to do manually, so automating it might be nice, right?
+This is kind of a pain to setup manually, so automating it might be nice, right?
 
 ## Install
 
@@ -63,7 +63,45 @@ assert.doesNotThrow(() => {
 }, `could not require('${pkg.name}/${pkg.main}') directly`);
 ```
 
-**You do not need to add test files for `packtester` to your published package** (unless you want to); in other words, they don't need to be in the `files` prop of `package.json`, and they can be safely ignored via `.npmignore`, if desired.
+**You do not need to add test files for `packtester` to your published package** (unless you want to); in other words, they don't need to be in the `files` prop of `package.json` and/or can be added to `.npmignore`, if desired.
+
+### Suggested CI Configuration
+
+Run `packtester` as a job or step _before_ the main test suite (e.g., `npm test`) as a "smoke test," and have subsequent steps wait for this to complete successfully.
+
+#### GitHub Actions Example
+
+Add a `smoke-test` script to `package.json` (remove the `"pretest": "packtester"` script, if present):
+
+```json
+{
+  "scripts": {
+    "smoke-test": "packtester",
+    "test": "your-test-command"
+  }
+}
+```
+
+And in your workflow file (e.g., `.github/workflows/my-workflow.yml`):
+
+```yaml
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: bahmutov/npm-install@v1
+      - name: Smoke Test
+        run: npm run smoke-test
+  test:
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    steps:
+      - uses: actions/checkout@v2
+      - uses: bahmutov/npm-install@v1
+      - name: Full Test Suite
+        run: npm test
+```
 
 ## Options
 

@@ -1,7 +1,7 @@
 {
   "name": "packtester",
   "version": "0.2.0",
-  "description": "Test the output of your npm-published package",
+  "description": "Assert your published package actually works",
   "main": "src/packtester.js",
   "scripts": {
     "posttest": "markdownlint \"*.md\" && eslint .",
